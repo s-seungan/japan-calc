@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>일본 계산기 v9</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --l0: #9ed4bf; --l1: #b3dece; --l2: #8ec8b4; --l3: #6db89f; --l4: #6dbda0;
+  --light: #d8f5ec; --dark: #2a6e58;
+  --accent1: #0e3d2c; --accent2: #1e6b50; --accent3: #2d8f6a;
+  --border: 1px solid rgba(255,255,255,0.85);
+  --shadow-out: -7px -7px 16px var(--light), 10px 10px 24px var(--dark);
+  --shadow-out-lg: -18px -18px 40px var(--light), 18px 18px 40px var(--dark);
+  --shadow-out-sm: -6px -6px 14px var(--light), 6px 6px 14px var(--dark);
+  --shadow-in: inset -7px -7px 16px var(--light), inset 7px 7px 16px var(--dark);
+  --shadow-in-sm: inset -4px -4px 9px var(--light), inset 4px 4px 9px var(--dark);
+}
+* { box-sizing: border-box; margin: 0; padding: 0;
+    font-family: 'Malgun Gothic','Apple SD Gothic Neo',sans-serif !important;
+    font-weight: bold !important; }
+body { font-size: 21px; background: var(--l0); min-height: 100vh;
+       padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+.wrap {
+  background: linear-gradient(to top, var(--l2) 0%, var(--l1) 110%);
+  border: 1.5px solid rgba(255,255,255,0.95); border-radius: 28px;
+  box-shadow: var(--shadow-out-lg), inset 0 -18px 40px rgba(42,110,88,0.18),
+              inset 0 8px 20px rgba(42,110,88,0.04), 0 0 0 4px rgba(255,255,255,0.55),
+              0 0 18px 6px rgba(255,255,255,0.30), 0 0 40px 12px rgba(200,240,225,0.18);
+  padding: 28px 28px 32px; width: 100%; max-width: 740px; position: relative;
+}
+.wrap::before {
+  content: ''; position: absolute; inset: 8px; border-radius: 22px; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='none' rx='22' ry='22' stroke='%23ffffff' stroke-width='2.3' stroke-linecap='round' stroke-dasharray='4 4'/%3E%3C/svg%3E");
+}
+.version-badge {
+  position: absolute; top: 14px; right: 18px;
+  background: var(--l3); border: var(--border); border-radius: 20px;
+  padding: 3px 12px; font-size: 0.72em; box-shadow: var(--shadow-out-sm);
+}
+h1 { font-size: 1.53em; color: var(--accent1); margin-bottom: 4px; text-align: center; }
+.sub { font-size: 0.78em; color: var(--accent2); text-align: center; margin-bottom: 18px; }
+.card {
+  background: var(--l2); border: var(--border); border-radius: 18px;
+  box-shadow: var(--shadow-out); padding: 14px 18px 16px; margin-bottom: 14px;
+}
+.card-title {
+  font-size: 0.85em; color: var(--accent2); margin-bottom: 12px;
+  padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.5);
+}
+.row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.row:last-child { margin-bottom: 0; }
+.row label { min-width: 72px; flex-shrink: 0; font-size: 0.85em; color: var(--accent1); }
+input[type=number], input[type=text], input[type=date] {
+  flex: 1; background: var(--l4); box-shadow: var(--shadow-in);
+  border: var(--border); border-radius: 10px; padding: 7px 10px;
+  color: var(--accent1); font-size: 0.88em; text-align: right;
+}
+input[type=text] { text-align: left; }
+input[type=date] { text-align: left; cursor: pointer; }
+.unit { font-size: 0.78em; color: var(--accent2); white-space: nowrap; min-width: 16px; }
+.calc-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 9px;
+  padding: 8px 10px; background: var(--l1);
+  border: var(--border); border-radius: 12px; box-shadow: var(--shadow-out-sm);
+}
+.calc-row:last-child { margin-bottom: 0; }
+.calc-row .clabel { min-width: 72px; font-size: 0.85em; color: var(--accent1); flex-shrink: 0; }
+.calc-row input[type=number] { width: 62px; flex: unset; padding: 6px 8px; font-size: 0.83em; }
+.calc-row .formula { font-size: 0.73em; color: var(--accent2); white-space: nowrap; flex-shrink: 0; }
+.calc-row .result-amt {
+  margin-left: auto; font-size: 0.88em; color: var(--accent3);
+  background: var(--l2); border: var(--border); border-radius: 10px;
+  padding: 5px 10px; box-shadow: var(--shadow-in-sm); min-width: 88px; text-align: right; flex-shrink: 0;
+}
+.auto-result {
+  flex: 1; background: var(--l1); border: var(--border); border-radius: 10px;
+  padding: 7px 10px; font-size: 0.88em; text-align: right; color: var(--accent3);
+  cursor: pointer; transition: border-color 0.2s;
+}
+.auto-result.manual { border: 2px solid #e8a030; background: var(--l4); color: var(--accent1); }
+.auto-result:hover { opacity: 0.85; }
+.mode-badge {
+  font-size: 0.65em; padding: 2px 6px; border-radius: 10px;
+  background: var(--l3); color: var(--light); border: var(--border);
+  box-shadow: var(--shadow-out-sm); white-space: nowrap;
+}
+.mode-badge.manual { background: #e8a030; color: #fff; }
+.total-box {
+  background: var(--l3); border: var(--border); border-radius: 16px;
+  box-shadow: var(--shadow-out); padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+}
+.total-label { font-size: 0.92em; color: var(--light); }
+.total-value { font-size: 1.5em; color: #e8fff8; }
+.btn-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.btn {
+  flex: 1; padding: 11px 0; background: var(--l3);
+  border: var(--border); border-radius: 12px;
+  box-shadow: var(--shadow-out-sm); cursor: pointer; font-size: 0.88em; color: var(--accent1);
+}
+.btn:hover { box-shadow: var(--shadow-in-sm); }
+.btn:active { box-shadow: var(--shadow-in); }
+.btn.primary { background: var(--accent3); color: #e8fff8; font-size: 0.95em; }
+.btn.danger { background: #8b3030; color: #ffe8e8; }
+.btn.export { background: var(--accent2); color: #e8fff8; }
+.btn.import { background: #2a7ab5; color: #e8f4ff; }
+.enter-hint { font-size: 0.72em; color: var(--accent2); text-align: center; margin-bottom: 10px; }
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(60px);
+  background: var(--accent1); color: var(--light); border-radius: 24px;
+  padding: 10px 24px; font-size: 0.85em; opacity: 0;
+  transition: opacity 0.3s, transform 0.3s; z-index: 999; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#fileInput { display: none; }
+
+/* 누적 리스트 */
+.list-header {
+  display: grid; grid-template-columns: 68px 140px 1fr 80px 28px;
+  gap: 4px; font-size: 0.72em; color: var(--accent2); padding: 4px 8px; margin-bottom: 4px;
+}
+.list-item {
+  display: grid; grid-template-columns: 68px 140px 1fr 80px 28px;
+  gap: 4px; font-size: 0.74em; color: var(--accent1);
+  padding: 6px 8px; margin-bottom: 4px;
+  background: var(--l1); border: var(--border); border-radius: 10px;
+  box-shadow: var(--shadow-out-sm); align-items: center;
+}
+.list-item span { overflow: hidden; text-overflow: ellipsis; }
+.item-total { color: var(--accent3); text-align: right; white-space: nowrap; }
+.item-tags { font-size: 0.92em; color: var(--accent2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.del-btn {
+  background: none; border: none; cursor: pointer; font-size: 1em;
+  color: #8b3030; padding: 0; line-height: 1;
+}
+.del-btn:hover { transform: scale(1.2); }
+.empty-msg { text-align: center; font-size: 0.82em; color: var(--accent2); padding: 16px 0; }
+
+/* 미처리 */
+.list-item.pending {
+  background: linear-gradient(135deg, #f5e6c8 0%, #e8d4a8 100%);
+  border: 1.5px solid #d4a54a;
+}
+.list-item.pending .item-total { color: #b8860b; }
+.pending-badge {
+  font-size: 0.6em; padding: 1px 5px; border-radius: 8px;
+  background: #e8a030; color: #fff; margin-left: 4px;
+}
+.pending-counter { font-size: 0.78em; color: #b8860b; margin-left: 8px; }
+
+/* 찾기 하이라이트 */
+.list-item.search-hit {
+  outline: 3px solid #e83030; outline-offset: -1px;
+  background: #fff3cd !important;
+}
+
+/* 찾기 바 */
+.search-bar {
+  display: flex; gap: 6px; margin-bottom: 8px; align-items: center;
+}
+.search-bar input {
+  flex: 1; background: var(--l4); box-shadow: var(--shadow-in);
+  border: var(--border); border-radius: 10px; padding: 6px 10px;
+  color: var(--accent1); font-size: 0.82em;
+}
+.search-bar button {
+  padding: 6px 12px; background: var(--accent3); color: #e8fff8;
+  border: var(--border); border-radius: 10px; box-shadow: var(--shadow-out-sm);
+  cursor: pointer; font-size: 0.78em; white-space: nowrap;
+}
+.search-bar button:hover { box-shadow: var(--shadow-in-sm); }
+.search-bar .search-info { font-size: 0.7em; color: var(--accent2); white-space: nowrap; }
+
+@media (max-width: 600px) {
+  body { font-size: 19px !important; padding: 10px !important; }
+  .wrap { padding: 18px 12px 24px !important; border-radius: 20px !important; }
+  h1 { font-size: 1.53em !important; }
+  .row { flex-wrap: wrap !important; }
+  .calc-row { flex-wrap: wrap !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="version-badge">v7</div>
+  <h1>🧾 일본 계산기</h1>
+  <p class="sub">주문별 품목 금액 계산 · 누적 저장 · 엑셀 내보내기</p>
+
+  <!-- ① 기본 정보 -->
+  <div class="card">
+    <div class="card-title">📋 기본 정보</div>
+    <div class="row">
+      <label>날짜</label>
+      <input type="date" id="inputDate">
+    </div>
+    <div class="row">
+      <label>주문번호</label>
+      <input type="text" id="orderNo" placeholder="예: JG2507289883-01">
+    </div>
+    <div class="row">
+      <label>내용</label>
+      <input type="text" id="contentText" placeholder="예: 금박 300">
+    </div>
+  </div>
+
+  <!-- ② 수지.동판가격 (기존 자동계산 품목) -->
+  <div class="card">
+    <div class="card-title">🏭 수지.동판가격</div>
+    <div class="calc-row">
+      <span class="clabel">동판비</span>
+      <input type="number" id="dp_w" placeholder="가로" min="0">
+      <span class="formula">×</span>
+      <input type="number" id="dp_h" placeholder="세로" min="0">
+      <span class="formula">×150 (최소6천)</span>
+      <div class="result-amt" id="dpResult">0 원</div>
+    </div>
+    <div class="calc-row">
+      <span class="clabel">수지동판비</span>
+      <input type="number" id="sp_w" placeholder="가로" min="0">
+      <span class="formula">×</span>
+      <input type="number" id="sp_h" placeholder="세로" min="0">
+      <span class="formula">×300 (최소12천)</span>
+      <div class="result-amt" id="spResult">0 원</div>
+    </div>
+    <div style="font-size:0.72em; color:var(--accent2); margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.4);">
+      엑셀: 동판비+수지동판비 → <b>동판.수지</b> 한 컬럼 합산
+    </div>
+  </div>
+
+  <!-- ③ 품목 -->
+  <div class="card">
+    <div class="card-title">💰 품목</div>
+    <div class="row">
+      <label>금박</label>
+      <div class="auto-result" id="geumBakResult" ondblclick="toggleMode('geumBak')" title="더블클릭: 직접입력">0</div>
+      <span class="mode-badge" id="geumBakBadge">자동</span>
+    </div>
+    <div class="row">
+      <label>도무송칼</label>
+      <input type="number" id="amt_domosongKal" placeholder="0" min="0">
+    </div>
+    <div class="row">
+      <label>오시</label>
+      <input type="number" id="amt_oshi" placeholder="0" min="0">
+    </div>
+    <div class="row">
+      <label>도무송</label>
+      <div class="auto-result" id="domosongResult" ondblclick="toggleMode('domosong')" title="더블클릭: 직접입력">0</div>
+      <span class="mode-badge" id="domosongBadge">자동</span>
+    </div>
+    <div class="row">
+      <label>수량</label>
+      <input type="number" id="amt_qty" placeholder="0" min="0">
+      <span class="unit">장</span>
+    </div>
+    <div class="row">
+      <label>건수</label>
+      <input type="number" id="amt_count" placeholder="1" min="1" value="1">
+    </div>
+    <div class="row">
+      <label>금액</label>
+      <div class="auto-result" id="amountResult" style="cursor:default; font-size:1em; color:var(--accent1);">0</div>
+      <span class="unit">원</span>
+    </div>
+    <div style="font-size:0.68em; color:var(--accent2); margin-top:2px; padding-left:80px;">
+      (금박+오시+도무송)×건수 + 도무송칼
+    </div>
+  </div>
+
+  <!-- ④ 총 금액 -->
+  <div class="total-box">
+    <span class="total-label">💵 금액</span>
+    <span class="total-value" id="grandTotal">0 원</span>
+  </div>
+  <div style="font-size:0.68em; color:var(--accent2); text-align:right; margin-top:-10px; margin-bottom:12px;">
+    품목금액 + 동판비 + 수지동판비
+  </div>
+
+  <!-- ⑤ 버튼 -->
+  <p class="enter-hint">⌨️ 어느 입력칸에서나 Enter 치면 행 추가됩니다</p>
+  <div class="btn-row">
+    <button class="btn primary" id="btnAdd">➕ 행 추가 (Enter)</button>
+    <button class="btn" id="btnClear">🔄 입력 초기화</button>
+  </div>
+  <div class="btn-row">
+    <button class="btn export" id="btnExcel">📥 엑셀 다운로드</button>
+    <button class="btn import" id="btnImport">📂 엑셀 불러오기</button>
+  </div>
+  <div class="btn-row">
+    <button class="btn danger" id="btnReset">🗑️ 전체 초기화</button>
+  </div>
+  <input type="file" id="fileInput" accept=".xlsx,.xls">
+
+  <!-- ⑥ 누적 리스트 -->
+  <div class="card" style="margin-top:4px;">
+    <div class="card-title">📊 누적 내역 (<span id="rowCount">0</span>건)<span class="pending-counter" id="pendingCount"></span></div>
+    <!-- 찾기 바 -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="주문번호 또는 내용 검색" onclick="this.select()">
+      <button id="btnSearch">🔍 찾기</button>
+      <button id="btnSearchNext">▼</button>
+      <button id="btnSearchClear" style="background:#8b3030;color:#ffe8e8;">✕</button>
+      <span class="search-info" id="searchInfo"></span>
+    </div>
+    <div class="list-header">
+      <span>날짜</span><span>주문번호</span>
+      <span>내용</span><span style="text-align:right">금액</span><span></span>
+    </div>
+    <div id="listArea"><div class="empty-msg">저장된 내역이 없습니다</div></div>
+  </div>
+
+  <!-- ⑦ 메모카드 -->
+  <div class="card" style="margin-top:4px;" id="memoCard">
+    <div class="card-title">📝 재발주 메모장
+      <span style="font-size:0.72em;color:var(--accent3);margin-left:8px;">구글시트 동기화</span>
+    </div>
+
+    <!-- URL 설정 -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+      <input type="text" id="gasUrl" placeholder="Apps Script 웹앱 URL 붙여넣기"
+        style="flex:1;padding:7px 10px;border-radius:10px;border:none;
+               box-shadow:var(--shadow-in-sm);background:var(--l1);
+               font-size:0.72em;color:var(--accent1);"
+        onclick="this.select()">
+      <button onclick="saveGasUrl()" style="padding:6px 12px;border-radius:10px;border:none;
+        background:var(--l3);box-shadow:var(--shadow-out-sm);cursor:pointer;
+        font-size:0.72em;color:var(--accent1);">💾 URL저장</button>
+    </div>
+
+    <!-- 메모 입력 -->
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input type="text" id="memoTitle" placeholder="제목 (예: 명함금박 A사)"
+        style="width:220px;padding:7px 10px;border-radius:10px;border:none;
+               box-shadow:var(--shadow-in-sm);background:var(--l1);
+               font-size:0.8em;color:var(--accent1);" onclick="this.select()">
+      <textarea id="memoContent" placeholder="내용 (가로85 세로55 수량500 금박+도무송...)"
+        rows="2" style="flex:1;padding:7px 10px;border-radius:10px;border:none;
+               box-shadow:var(--shadow-in-sm);background:var(--l1);resize:vertical;
+               font-size:0.8em;color:var(--accent1);font-family:inherit;font-weight:bold;"></textarea>
+    </div>
+
+    <!-- 버튼 -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+      <button onclick="addMemo()" style="padding:7px 16px;border-radius:10px;border:none;
+        background:var(--l3);box-shadow:var(--shadow-out-sm);cursor:pointer;
+        font-size:0.8em;color:var(--accent1);">➕ 메모추가</button>
+      <button onclick="syncMemoToSheet()" style="padding:7px 16px;border-radius:10px;border:none;
+        background:var(--l3);box-shadow:var(--shadow-out-sm);cursor:pointer;
+        font-size:0.8em;color:var(--accent1);">☁️ 구글저장</button>
+      <button onclick="loadMemoFromSheet()" style="padding:7px 16px;border-radius:10px;border:none;
+        background:var(--l3);box-shadow:var(--shadow-out-sm);cursor:pointer;
+        font-size:0.8em;color:var(--accent1);">🔄 구글불러오기</button>
+      <span id="memoStatus" style="font-size:0.72em;color:var(--accent2);align-self:center;"></span>
+    </div>
+
+    <!-- 메모 목록 -->
+    <div id="memoList" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PRICE_TABLE = [
+  {qty:100,price:15000},{qty:200,price:18000},{qty:300,price:23000},
+  {qty:400,price:25000},{qty:500,price:26000},{qty:600,price:28000},
+  {qty:700,price:29000},{qty:800,price:30000},{qty:900,price:31000},
+  {qty:1000,price:36000},
+];
+
+function lookupPrice(qty) {
+  if (!qty || qty <= 0) return 0;
+  if (qty <= 1000) {
+    for (let i = 0; i < PRICE_TABLE.length; i++) {
+      if (qty <= PRICE_TABLE[i].qty) return PRICE_TABLE[i].price;
+    }
+  }
+  let total = 0, remain = qty;
+  while (remain > 0) {
+    if (remain >= 1000) { total += 36000; remain -= 1000; }
+    else {
+      for (let i = 0; i < PRICE_TABLE.length; i++) {
+        if (remain <= PRICE_TABLE[i].qty) { total += PRICE_TABLE[i].price; break; }
+      }
+      remain = 0;
+    }
+  }
+  return total;
+}
+
+let geumBakMode = 'auto', domosongMode = 'auto';
+let geumBakManual = 0, domosongManual = 0;
+const STORAGE_KEY = 'japan_records_v3';
+
+function loadRecords() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; } }
+function saveRecords(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+function today() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fmt(n) { return Number(n).toLocaleString('ko-KR'); }
+
+function toggleMode(type) {
+  if (type === 'geumBak') {
+    if (geumBakMode === 'auto') {
+      geumBakMode = 'manual';
+      const el = document.getElementById('geumBakResult');
+      const cur = getGeumBakValue();
+      el.innerHTML = `<input type="number" id="geumBakManualInput" value="${cur}" style="width:100%;border:none;background:transparent;text-align:right;font-size:1em;color:var(--accent1);font-weight:bold!important;" oninput="geumBakManual=parseInt(this.value)||0; calcAll();">`;
+      el.classList.add('manual');
+      document.getElementById('geumBakBadge').textContent = '수동';
+      document.getElementById('geumBakBadge').classList.add('manual');
+      document.getElementById('geumBakManualInput').focus();
+    } else {
+      geumBakMode = 'auto'; geumBakManual = 0;
+      const el = document.getElementById('geumBakResult');
+      el.classList.remove('manual'); el.textContent = '0';
+      document.getElementById('geumBakBadge').textContent = '자동';
+      document.getElementById('geumBakBadge').classList.remove('manual');
+    }
+    calcAll();
+  } else if (type === 'domosong') {
+    if (domosongMode === 'auto') {
+      domosongMode = 'manual';
+      const el = document.getElementById('domosongResult');
+      const cur = getDomosongValue();
+      el.innerHTML = `<input type="number" id="domosongManualInput" value="${cur}" style="width:100%;border:none;background:transparent;text-align:right;font-size:1em;color:var(--accent1);font-weight:bold!important;" oninput="domosongManual=parseInt(this.value)||0; calcAll();">`;
+      el.classList.add('manual');
+      document.getElementById('domosongBadge').textContent = '수동';
+      document.getElementById('domosongBadge').classList.add('manual');
+      document.getElementById('domosongManualInput').focus();
+    } else {
+      domosongMode = 'auto'; domosongManual = 0;
+      const el = document.getElementById('domosongResult');
+      el.classList.remove('manual'); el.textContent = '0';
+      document.getElementById('domosongBadge').textContent = '자동';
+      document.getElementById('domosongBadge').classList.remove('manual');
+    }
+    calcAll();
+  }
+}
+
+function getGeumBakValue() { if (geumBakMode==='manual') return geumBakManual; return lookupPrice(parseInt(document.getElementById('amt_qty').value)||0); }
+function getDomosongValue() { if (domosongMode==='manual') return domosongManual; return lookupPrice(parseInt(document.getElementById('amt_qty').value)||0); }
+function getDongpanValue() { const w=parseInt(document.getElementById('dp_w').value)||0, h=parseInt(document.getElementById('dp_h').value)||0; if(!w||!h) return 0; const v1=Math.max(w*h*150,6000); return Math.round(v1/1000)*1000; }
+function getSujiDongpanValue() { const w=parseInt(document.getElementById('sp_w').value)||0, h=parseInt(document.getElementById('sp_h').value)||0; if(!w||!h) return 0; const v2=Math.max(w*h*300,12000); return Math.round(v2/1000)*1000; }
+
+function calcAll() {
+  const count = parseInt(document.getElementById('amt_count').value)||1;
+  const oshi = parseInt(document.getElementById('amt_oshi').value)||0;
+  const domosongKal = parseInt(document.getElementById('amt_domosongKal').value)||0;
+  const geumBak = getGeumBakValue(), domosong = getDomosongValue();
+  const dongpanCalc = getDongpanValue(), sujiDongpan = getSujiDongpanValue();
+
+  if (geumBakMode==='auto') document.getElementById('geumBakResult').textContent = fmt(geumBak);
+  if (domosongMode==='auto') document.getElementById('domosongResult').textContent = fmt(domosong);
+  document.getElementById('dpResult').textContent = fmt(dongpanCalc)+' 원';
+  document.getElementById('spResult').textContent = fmt(sujiDongpan)+' 원';
+
+  const itemAmount = (geumBak+oshi+domosong)*count + domosongKal;
+  const amount = itemAmount + dongpanCalc + sujiDongpan;
+  document.getElementById('amountResult').textContent = fmt(itemAmount);
+  document.getElementById('grandTotal').textContent = fmt(amount)+' 원';
+  return amount;
+}
+
+function collectData() {
+  const amount = calcAll();
+  return {
+    '날짜': document.getElementById('inputDate').value||today(),
+    '주문번호': document.getElementById('orderNo').value.trim()||'-',
+    '내용': document.getElementById('contentText').value.trim()||'-',
+    '금박': getGeumBakValue(), '동판': getDongpanValue(),
+    '도무송칼': parseInt(document.getElementById('amt_domosongKal').value)||0,
+    '오시': parseInt(document.getElementById('amt_oshi').value)||0,
+    '도무송': getDomosongValue(),
+    '수량': parseInt(document.getElementById('amt_qty').value)||0,
+    '건수': parseInt(document.getElementById('amt_count').value)||1,
+    '금액': amount,
+    '동판비_raw': getDongpanValue(), '수지동판비_raw': getSujiDongpanValue(),
+    // 가로세로 값 저장
+    'dp_w': parseInt(document.getElementById('dp_w').value)||0,
+    'dp_h': parseInt(document.getElementById('dp_h').value)||0,
+    'sp_w': parseInt(document.getElementById('sp_w').value)||0,
+    'sp_h': parseInt(document.getElementById('sp_h').value)||0,
+    // 금박/도무송 모드 저장
+    '_geumBakMode': geumBakMode,
+    '_geumBakManual': geumBakManual,
+    '_domosongMode': domosongMode,
+    '_domosongManual': domosongManual,
+  };
+}
+
+// ── 리스트 ──
+function renderList() {
+  const records = loadRecords();
+  const area = document.getElementById('listArea');
+  document.getElementById('rowCount').textContent = records.length;
+  const pendingCnt = records.filter(r=>r._pending).length;
+  document.getElementById('pendingCount').textContent = pendingCnt>0 ? ` · 미처리 ${pendingCnt}건` : '';
+
+  if (records.length===0) { area.innerHTML='<div class="empty-msg">저장된 내역이 없습니다</div>'; return; }
+  area.innerHTML = records.map((rec,i) => {
+    const isPending = rec._pending;
+    const cls = isPending ? 'list-item pending' : 'list-item';
+    const badge = isPending ? '<br><span class="pending-badge">미처리</span>' : '';
+    const amtText = isPending ? '-' : fmt(rec['금액'])+'원';
+    return `<div class="${cls}" id="row-${i}" ondblclick="editRow(${i})" title="더블클릭: 수정" style="cursor:pointer;">
+      <span style="font-size:0.9em;">${rec['날짜']}</span>
+      <span style="font-size:0.82em;line-height:1.3;">${rec['주문번호']}${badge}</span>
+      <span class="item-tags">${rec['내용']||'-'}</span>
+      <span class="item-total">${amtText}</span>
+      <button class="del-btn" onclick="event.stopPropagation();deleteRow(${i})" title="삭제">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ── 행 수정 ──
+let editingIdx = -1;
+function editRow(idx) {
+  const records = loadRecords(); const rec = records[idx]; editingIdx = idx;
+  document.getElementById('inputDate').value = rec['날짜']||today();
+  document.getElementById('orderNo').value = rec['주문번호']||'';
+  document.getElementById('contentText').value = rec['내용']||'';
+  document.getElementById('amt_oshi').value = rec['오시']||'';
+  document.getElementById('amt_domosongKal').value = rec['도무송칼']||'';
+  document.getElementById('amt_qty').value = rec['수량']||'';
+  document.getElementById('amt_count').value = rec['건수']||1;
+
+  // 동판비/수지동판비 가로세로 복원
+  document.getElementById('dp_w').value = rec['dp_w']||'';
+  document.getElementById('dp_h').value = rec['dp_h']||'';
+  document.getElementById('sp_w').value = rec['sp_w']||'';
+  document.getElementById('sp_h').value = rec['sp_h']||'';
+
+  // 금박 모드 복원
+  const savedGBMode = rec['_geumBakMode']||'auto';
+  const savedGBManual = rec['_geumBakManual']||0;
+  geumBakMode = savedGBMode; geumBakManual = savedGBManual;
+  const gbEl = document.getElementById('geumBakResult');
+  if (savedGBMode === 'manual') {
+    gbEl.innerHTML = `<input type="number" id="geumBakManualInput" value="${savedGBManual}" style="width:100%;border:none;background:transparent;text-align:right;font-size:1em;color:var(--accent1);font-weight:bold!important;" oninput="geumBakManual=parseInt(this.value)||0; calcAll();">`;
+    gbEl.classList.add('manual');
+    document.getElementById('geumBakBadge').textContent = '수동';
+    document.getElementById('geumBakBadge').classList.add('manual');
+  } else {
+    gbEl.classList.remove('manual'); gbEl.textContent = '0';
+    document.getElementById('geumBakBadge').textContent = '자동';
+    document.getElementById('geumBakBadge').classList.remove('manual');
+  }
+
+  // 도무송 모드 복원
+  const savedDSMode = rec['_domosongMode']||'auto';
+  const savedDSManual = rec['_domosongManual']||0;
+  domosongMode = savedDSMode; domosongManual = savedDSManual;
+  const dsEl = document.getElementById('domosongResult');
+  if (savedDSMode === 'manual') {
+    dsEl.innerHTML = `<input type="number" id="domosongManualInput" value="${savedDSManual}" style="width:100%;border:none;background:transparent;text-align:right;font-size:1em;color:var(--accent1);font-weight:bold!important;" oninput="domosongManual=parseInt(this.value)||0; calcAll();">`;
+    dsEl.classList.add('manual');
+    document.getElementById('domosongBadge').textContent = '수동';
+    document.getElementById('domosongBadge').classList.add('manual');
+  } else {
+    dsEl.classList.remove('manual'); dsEl.textContent = '0';
+    document.getElementById('domosongBadge').textContent = '자동';
+    document.getElementById('domosongBadge').classList.remove('manual');
+  }
+
+  calcAll();
+  const addBtn=document.getElementById('btnAdd');
+  addBtn.textContent='✏️ 수정 완료 (#'+(idx+1)+')'; addBtn.style.background='#e8a030';
+  showToast('📝 #'+(idx+1)+' 수정 중...'); window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function saveEdit() {
+  if (editingIdx<0) return;
+  const rec=collectData(); rec._pending=false;
+  const records=loadRecords(); records[editingIdx]=rec; saveRecords(records);
+  renderList(); clearInputs();
+  const addBtn=document.getElementById('btnAdd');
+  addBtn.textContent='➕ 행 추가 (Enter)'; addBtn.style.background=''; editingIdx=-1;
+  showToast('✅ 수정 완료!');
+}
+
+function deleteRow(idx) { const r=loadRecords(); r.splice(idx,1); saveRecords(r); renderList(); showToast('삭제했습니다'); }
+
+function addRow() {
+  const rec=collectData(); const r=loadRecords(); r.push(rec); saveRecords(r);
+  renderList(); clearInputs(); showToast('✅ 행 추가 완료! ('+r.length+'건)');
+}
+
+function clearInputs() {
+  ['orderNo','contentText','amt_oshi','amt_domosongKal','amt_qty','dp_w','dp_h','sp_w','sp_h'].forEach(id=>{document.getElementById(id).value='';});
+  document.getElementById('inputDate').value=today();
+  document.getElementById('amt_count').value='1';
+  geumBakMode='auto'; geumBakManual=0; domosongMode='auto'; domosongManual=0;
+  const gbEl=document.getElementById('geumBakResult'); gbEl.classList.remove('manual'); gbEl.textContent='0';
+  document.getElementById('geumBakBadge').textContent='자동'; document.getElementById('geumBakBadge').classList.remove('manual');
+  const dsEl=document.getElementById('domosongResult'); dsEl.classList.remove('manual'); dsEl.textContent='0';
+  document.getElementById('domosongBadge').textContent='자동'; document.getElementById('domosongBadge').classList.remove('manual');
+  calcAll();
+}
+
+// ── 엑셀 다운로드 ──
+function downloadExcel() {
+  const records=loadRecords();
+  if (!records.length) { showToast('⚠️ 저장된 내역이 없습니다'); return; }
+  const wsData=[['날짜','주문번호','내용','금박','동판.수지','도무송칼','오시','도무송','수량','건수','금액']];
+  records.forEach(rec=>{
+    const ds=(rec['동판비_raw']||0)+(rec['수지동판비_raw']||0);
+    wsData.push([rec['날짜'],rec['주문번호'],rec['내용']||'-',rec['금박']||'',ds||'',rec['도무송칼']||'',rec['오시']||'',rec['도무송']||'',rec['수량']||'',rec['건수']||'',rec['금액']||'']);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:12},{wch:18},{wch:20},{wch:10},{wch:12},{wch:10},{wch:8},{wch:10},{wch:8},{wch:6},{wch:12}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'일본계산기');
+  XLSX.writeFile(wb,'일본계산기_'+today()+'.xlsx'); showToast('📥 엑셀 다운로드 완료');
+}
+
+function resetAll() {
+  if (!confirm('누적 내역을 모두 삭제하시겠습니까?')) return;
+  localStorage.removeItem(STORAGE_KEY); renderList(); clearInputs(); showToast('🗑️ 전체 초기화 완료');
+}
+
+// ── 엑셀 불러오기 ──
+function importExcel() { document.getElementById('fileInput').click(); }
+function handleFileImport(e) {
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(evt){
+    try {
+      const data=new Uint8Array(evt.target.result);
+      const wb=XLSX.read(data,{type:'array'}), sh=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(sh,{header:1});
+      if(rows.length<2){showToast('⚠️ 데이터 없음');return;}
+      const records=loadRecords(); let cnt=0;
+      for(let i=1;i<rows.length;i++){
+        const row=rows[i]; if(!row||!row[0]) continue;
+        let dv=row[0];
+        if(typeof dv==='number'){const d=new Date((dv-25569)*86400*1000);dv=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+        if(typeof dv==='string'&&dv.includes('월')){const m=dv.match(/(\d+)월\s*(\d+)/);if(m)dv=`${new Date().getFullYear()}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;}
+        const on=String(row[1]||'').trim(), ct=String(row[2]||'').trim();
+        if(records.find(r=>r['주문번호']===on)) continue;
+        records.push({'날짜':dv,'주문번호':on||'-','내용':ct||'-','금박':0,'동판':0,'도무송칼':0,'오시':0,'도무송':0,'수량':0,'건수':1,'금액':0,'동판비_raw':0,'수지동판비_raw':0,_pending:true});
+        cnt++;
+      }
+      saveRecords(records); renderList(); showToast(`📂 ${cnt}건 불러오기 완료!`);
+    }catch(err){showToast('⚠️ 파일 읽기 실패');}
+    e.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── 찾기 기능 ──
+let searchHits = [];
+let searchIdx = -1;
+
+function doSearch() {
+  const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!keyword) { clearSearch(); return; }
+  const records = loadRecords();
+  searchHits = [];
+  records.forEach((rec, i) => {
+    const orderNo = (rec['주문번호']||'').toLowerCase();
+    const content = (rec['내용']||'').toLowerCase();
+    if (orderNo.includes(keyword) || content.includes(keyword)) searchHits.push(i);
+  });
+
+  // 하이라이트 초기화
+  document.querySelectorAll('.list-item.search-hit').forEach(el => el.classList.remove('search-hit'));
+
+  if (searchHits.length === 0) {
+    document.getElementById('searchInfo').textContent = '0건';
+    showToast('🔍 검색 결과 없음');
+    return;
+  }
+
+  // 전체 하이라이트
+  searchHits.forEach(idx => {
+    const el = document.getElementById('row-' + idx);
+    if (el) el.classList.add('search-hit');
+  });
+
+  searchIdx = 0;
+  scrollToHit();
+  document.getElementById('searchInfo').textContent = `${searchIdx+1}/${searchHits.length}`;
+}
+
+function nextSearch() {
+  if (searchHits.length === 0) return;
+  searchIdx = (searchIdx + 1) % searchHits.length;
+  scrollToHit();
+  document.getElementById('searchInfo').textContent = `${searchIdx+1}/${searchHits.length}`;
+}
+
+function scrollToHit() {
+  const el = document.getElementById('row-' + searchHits[searchIdx]);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function clearSearch() {
+  searchHits = []; searchIdx = -1;
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchInfo').textContent = '';
+  document.querySelectorAll('.list-item.search-hit').forEach(el => el.classList.remove('search-hit'));
+}
+
+// ── 토스트 ──
+let toastTimer;
+function showToast(msg) {
+  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2000);
+}
+
+// ── 이벤트 ──
+document.getElementById('btnAdd').addEventListener('click', function(){ if(editingIdx>=0) saveEdit(); else addRow(); });
+document.getElementById('btnClear').addEventListener('click', clearInputs);
+document.getElementById('btnExcel').addEventListener('click', downloadExcel);
+document.getElementById('btnImport').addEventListener('click', importExcel);
+document.getElementById('fileInput').addEventListener('change', handleFileImport);
+document.getElementById('btnReset').addEventListener('click', resetAll);
+document.getElementById('btnSearch').addEventListener('click', doSearch);
+document.getElementById('btnSearchNext').addEventListener('click', nextSearch);
+document.getElementById('btnSearchClear').addEventListener('click', clearSearch);
+
+// 검색창 Enter → 찾기
+document.getElementById('searchInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.stopPropagation(); doSearch(); }
+});
+
+['amt_qty','amt_count','amt_oshi','amt_domosongKal','dp_w','dp_h','sp_w','sp_h'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', calcAll);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && document.activeElement.tagName==='INPUT') {
+    if (document.activeElement.id === 'searchInput') return; // 검색창은 별도 처리
+    if (editingIdx>=0) saveEdit(); else addRow();
+  }
+});
+
+document.getElementById('inputDate').value = today();
+renderList(); calcAll();
+
+// ========================
+// 메모장 기능
+// ========================
+const MEMO_KEY = 'goodday_memo_v1';
+const GAS_URL_KEY = 'goodday_gas_url';
+const MEMO_SECRET = 'goodday2026';
+
+let memos = JSON.parse(localStorage.getItem(MEMO_KEY)||'[]');
+
+// 저장된 URL 복원
+(function(){
+  const url = localStorage.getItem(GAS_URL_KEY)||'';
+  if(url) document.getElementById('gasUrl').value = url;
+  renderMemos();
+})();
+
+function saveGasUrl(){
+  const url = document.getElementById('gasUrl').value.trim();
+  if(!url){ memoStatus('URL을 입력하세요','#c00'); return; }
+  localStorage.setItem(GAS_URL_KEY, url);
+  memoStatus('URL 저장됨 ✓','var(--accent2)');
+}
+
+function addMemo(){
+  const title = document.getElementById('memoTitle').value.trim();
+  const content = document.getElementById('memoContent').value.trim();
+  if(!title && !content){ memoStatus('제목 또는 내용을 입력하세요','#c00'); return; }
+  const now = new Date();
+  const date = now.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}).replace(/\. /g,'.').replace('.','');
+  memos.unshift({id:Date.now(), date, title:title||'(제목없음)', content});
+  saveMemoLocal();
+  document.getElementById('memoTitle').value='';
+  document.getElementById('memoContent').value='';
+  renderMemos();
+  memoStatus('메모 추가됨 ✓','var(--accent2)');
+}
+
+function deleteMemo(id){
+  memos = memos.filter(m=>m.id!==id);
+  saveMemoLocal();
+  renderMemos();
+}
+
+function saveMemoLocal(){
+  localStorage.setItem(MEMO_KEY, JSON.stringify(memos));
+}
+
+function renderMemos(){
+  const el = document.getElementById('memoList');
+  if(!memos.length){
+    el.innerHTML='<div style="text-align:center;color:var(--accent3);font-size:0.8em;padding:10px;">메모가 없습니다</div>';
+    return;
+  }
+  el.innerHTML = memos.map(m=>`
+    <div style="background:var(--l1);border-radius:12px;padding:10px 14px;
+      box-shadow:var(--shadow-in-sm);position:relative;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;">
+          <span style="font-size:0.75em;color:var(--accent3);">${m.date}</span>
+          <span style="font-size:0.85em;color:var(--accent1);margin-left:8px;">${m.title}</span>
+          <div style="font-size:0.8em;color:var(--accent2);margin-top:4px;white-space:pre-wrap;">${m.content}</div>
+        </div>
+        <button onclick="deleteMemo(${m.id})" style="padding:3px 9px;border-radius:8px;border:none;
+          background:var(--l3);box-shadow:var(--shadow-out-sm);cursor:pointer;
+          font-size:0.72em;color:#8b3030;flex-shrink:0;">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+async function syncMemoToSheet(){
+  const url = localStorage.getItem(GAS_URL_KEY)||'';
+  if(!url){ memoStatus('URL을 먼저 저장하세요','#c00'); return; }
+  memoStatus('저장 중...','var(--accent3)');
+  try{
+    const memosJson = encodeURIComponent(JSON.stringify(memos));
+    const getUrl = `${url}?key=${MEMO_SECRET}&action=save&memos=${memosJson}`;
+    const res = await fetch(getUrl);
+    const data = await res.json();
+    memoStatus(data.ok ? '구글시트 저장 완료 ✓' : '오류: '+data.msg, data.ok?'var(--accent2)':'#c00');
+  }catch(e){ memoStatus('연결 실패: '+e.message,'#c00'); }
+}
+
+async function loadMemoFromSheet(){
+  const url = localStorage.getItem(GAS_URL_KEY)||'';
+  if(!url){ memoStatus('URL을 먼저 저장하세요','#c00'); return; }
+  memoStatus('불러오는 중...','var(--accent3)');
+  try{
+    const getUrl = `${url}?key=${MEMO_SECRET}&action=load`;
+    const res = await fetch(getUrl);
+    const data = await res.json();
+    if(data.ok){
+      memos = data.memos.map((m,i)=>({id:Date.now()+i, date:m.date, title:m.title, content:m.content}));
+      saveMemoLocal();
+      renderMemos();
+      memoStatus(`불러오기 완료 (${memos.length}건) ✓`,'var(--accent2)');
+    } else {
+      memoStatus('오류: '+data.msg,'#c00');
+    }
+  }catch(e){ memoStatus('연결 실패: '+e.message,'#c00'); }
+}
+
+function memoStatus(msg, color){
+  const el = document.getElementById('memoStatus');
+  el.textContent = msg;
+  el.style.color = color||'var(--accent2)';
+  setTimeout(()=>{ el.textContent=''; }, 4000);
+}
+</script>
+</body>
+</html>
