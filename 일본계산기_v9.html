@@ -639,7 +639,10 @@ function handleFileImport(e) {
         if(typeof dv==='string'&&dv.includes('월')){const m=dv.match(/(\d+)월\s*(\d+)/);if(m)dv=`${new Date().getFullYear()}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;}
         const on=String(row[1]||'').trim(), ct=String(row[2]||'').trim();
         if(records.find(r=>r['주문번호']===on)) continue;
-        records.push({'날짜':dv,'주문번호':on||'-','내용':ct||'-','금박':0,'동판':0,'도무송칼':0,'오시':0,'도무송':0,'수량':0,'건수':1,'금액':0,'동판비_raw':0,'수지동판비_raw':0,_pending:true});
+        const gB=Number(row[3])||0, dS=Number(row[4])||0, dK=Number(row[5])||0;
+        const os=Number(row[6])||0, dm=Number(row[7])||0, qt=Number(row[8])||0;
+        const cn=Number(row[9])||1, am=Number(row[10])||0;
+        records.push({'날짜':dv,'주문번호':on||'-','내용':ct||'-','금박':gB,'동판':0,'도무송칼':dK,'오시':os,'도무송':dm,'수량':qt,'건수':cn,'금액':am,'동판비_raw':dS,'수지동판비_raw':0,_pending:false});
         cnt++;
       }
       saveRecords(records); renderList(); showToast(`📂 ${cnt}건 불러오기 완료!`);
